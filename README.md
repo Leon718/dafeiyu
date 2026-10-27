@@ -18,8 +18,12 @@
 | **她是谁** | `content/voices.json` 里的台词 | `content/AGENTS.md` 里的人格 |
 | **装完就能用** | 是 | 是（第一次聊完才生成记忆目录） |
 | **作者有话说** | 目前是规则实现，效果比较一般，待优化 | 性格变不了，但有记忆，能记住你的偏好 |
+
+
 ![alt text](docs/image.png)
+
 ![alt text](docs/image2.png)
+
 
 
 
