@@ -16,7 +16,7 @@ const DB_PATH = process.env.DAFEIYU_USAGE_DB
   ? path.resolve(process.env.DAFEIYU_USAGE_DB)
   : path.join(os.homedir(), '.workbuddy', 'workbuddy.db');
 // 没有这个库不是错误（别的 agent 不记积分）。read() 返回 ok:false，
-// 菜单退回「她吃了多少积分」这句通用文案 —— 功能少一个，人还在
+// 菜单退回「积分累计使用」这句通用文案 —— 功能少一个，人还在
 
 /** credit_json → {credits, msgs}。脏数据当 0，别让她因为一行坏 JSON 就闭嘴 */
 function sumCredits(json) {
@@ -111,9 +111,9 @@ function read(homeDir) {
 
 /** 一句话概括，给菜单标题用 */
 function label(data) {
-  if (!data || !data.ok) return '她吃了多少积分';
-  if (!data.her.msgs) return '她还没吃过积分';
-  return `她吃了 ${data.her.credits.toFixed(1)} 分`;
+  if (!data || !data.ok) return '积分累计使用';
+  if (!data.her.msgs) return '积分累计使用 0';
+  return `积分累计使用 ${data.her.credits.toFixed(1)}`;
 }
 
 module.exports = { read, label, sumCredits, DB_PATH };

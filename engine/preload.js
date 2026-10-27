@@ -14,7 +14,6 @@ contextBridge.exposeInMainWorld('pet', {
   poke: () => ipcRenderer.send('pet-poke'),
   contextMenu: () => ipcRenderer.send('context-menu'),
   quit: () => ipcRenderer.send('quit'),
-  openWorkBuddy: () => ipcRenderer.send('open-workbuddy'),
   openHome: () => ipcRenderer.send('open-home'),
   dragStart: () => ipcRenderer.send('drag-start'),
   dragMove: () => ipcRenderer.send('drag-move'),

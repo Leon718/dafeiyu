@@ -9,20 +9,15 @@
     "clickThrough": false
   },
   "_personaDir": "她的人格目录由 engine/paths.js 决定（DAFEIYU_HOME → userData/persona → content/），不在这里配，避免两处打架",
-  "host": {
-    "_doc": "她住在哪个 agent 里。开源版默认按 WorkBuddy 配，换成别的宿主只改这里 —— 右键菜单的「打开 ×××」跟着走。launchUrl 留空则隐藏这一项",
-    "name": "WorkBuddy",
-    "launchUrl": "workbuddy://"
-  },
   "presence": {
-    "_doc": "出场/退场。她不常驻桌面：被召唤才淡入，没人理就淡出并隐藏窗口。hideAfterMs 只是出厂默认，真值在右键「她待多久」里，存在 pet-prefs.json",
+    "_doc": "出场/退场。她不常驻桌面：被召唤才淡入，没人理就淡出并隐藏窗口。hideAfterMs 只是出厂默认，真值在右键「停留时间」里，存在 pet-prefs.json",
     "hideAfterMs": 20000,
     "quitAfterMs": 1200000,
     "fadeInMs": 420,
     "fadeOutMs": 720
   },
   "ledger": {
-    "_doc": "他点「她吃了多少积分」时的演出。数字从 0 滚上去，然后按累计消耗换钱袋：花得越多，袋子越空",
+    "_doc": "他点「积分累计使用」时的演出。数字从 0 滚上去，然后按累计消耗换钱袋：花得越多，袋子越空",
     "countingAnim": "吃Token",
     "fallbackAnim": "余额-袋空如洗",
     "tiers": [
@@ -118,7 +113,7 @@
     }
   },
   "gate": {
-    "_doc": "闸门只管「她主动来打扰」。他找她、他回来、他戳她这些回应类时刻不占预算也不吃冷却（见 hook-mapper 的 FREE_MOMENTS）。每小时 12 次是兜底，真正的防话痨是 watch.js 的去重窗口和 60 秒冷却",
+    "_doc": "闸门只管「她主动来打扰」。他找她、他回来、他戳她这些回应类时刻不占预算也不吃冷却（见 hook-mapper 的 FREE_MOMENTS）。每小时 12 次是兜底，真正的防话痨是 watch.js 的去重窗口和 60 秒冷却。注：右键「活跃度」会按倍率缩放 maxPerHour 和 globalCooldownMs（标准 1 倍；静默 0 倍，她自己不出来；高 2 倍预算、0.5 倍冷却），这里写的是「标准」那一档的底数",
     "maxPerHour": 12,
     "globalCooldownMs": 60000,
     "longRunMs": 1200000,

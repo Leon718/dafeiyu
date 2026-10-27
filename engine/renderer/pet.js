@@ -304,17 +304,41 @@ async function showLedger(d) {
 }
 
 // ---------- 交互 ----------
+//
+// 拖她这件事只有一个判据：**左键按着**。
+//
+// 踩过的坑：这里原来只在 mousedown 记一个 pointerDown，等 mouseup 来清。
+// 可是拖动过程中窗口是用 setPosition 跟着鼠标挪的，指针很容易跑出窗口范围，
+// 那一次 mouseup 就送不到这个窗口 —— pointerDown 留下来再也不会被清掉。
+// 之后鼠标只是从她身上经过，mousemove 看到「还按着」，窗口就跟着跑：
+// 她变成一块磁铁，一碰就滑走。所以每一帧都要自己核对一次按键状态。
 let pointerDown = null;
 let dragging = false;
 
+/** 松手（或者发现其实早就松了）：把拖动状态彻底清掉，回待机 */
+function endDrag() {
+  const wasDragging = dragging;
+  pointerDown = null;
+  dragging = false;
+  if (!wasDragging) return false;
+  window.pet.dragEnd();
+  playingState = 'idle';
+  currentState = 'idle';
+  playClip(pick(cfg.idle.pool));
+  scheduleIdle();
+  return true;
+}
+
 el.stage.addEventListener('mousedown', (e) => {
-  if (e.button === 2) return;
+  if (e.button !== 0) return;          // 只有左键，右键留给菜单
   pointerDown = { x: e.screenX, y: e.screenY, t: Date.now() };
   dragging = false;
 });
 
 window.addEventListener('mousemove', (e) => {
   if (!pointerDown) return;
+  // buttons === 0：他其实已经松手了，只是那一下没送到这个窗口
+  if (e.buttons === 0) { endDrag(); return; }
   const dx = e.screenX - pointerDown.x;
   const dy = e.screenY - pointerDown.y;
   if (!dragging && Math.hypot(dx, dy) > 4) {
@@ -330,21 +354,11 @@ window.addEventListener('mousemove', (e) => {
   if (dragging) window.pet.dragMove();
 });
 
-window.addEventListener('mouseup', () => {
+window.addEventListener('mouseup', (e) => {
   if (!pointerDown) return;
-  const wasDragging = dragging;
+  if (e && e.button !== 0) return;
   const held = Date.now() - pointerDown.t;
-  pointerDown = null;
-  dragging = false;
-
-  if (wasDragging) {
-    window.pet.dragEnd();
-    playingState = 'idle';
-    currentState = 'idle';
-    playClip(pick(cfg.idle.pool));
-    scheduleIdle();
-    return;
-  }
+  if (endDrag()) return;
 
   if (held < 600) {
     const now = Date.now();
@@ -359,6 +373,9 @@ window.addEventListener('mouseup', () => {
     speakLine('poke', null, { keepState: true });
   }
 });
+
+// 切走应用 / 窗口被藏起来：拖动一定已经结束了，别把状态留在那儿
+window.addEventListener('blur', () => { if (pointerDown) endDrag(); });
 
 // 双击：去找她说话
 el.stage.addEventListener('dblclick', () => {

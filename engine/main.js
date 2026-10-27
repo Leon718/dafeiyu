@@ -44,7 +44,10 @@ const DWELL_OPTIONS = [
   { label: '1 分钟', ms: 60000 },
   { label: '3 分钟', ms: 180000 },
 ];
-const DEFAULT_PREFS = { dwellMs: 20000, sizeFactor: 1, reducedMotion: false };
+// activity：她「自己跳出来」的频率，静默 / 标准 / 高 —— 见下面的 ACTIVITY_LEVELS。
+// reducedMotion 已经不在菜单里了（那个位置让给了活跃度）。这项仍然生效：
+// 手改 pet-prefs.json 里 reducedMotion:true 就是「只说话、不做动作」，省眼睛也省电。
+const DEFAULT_PREFS = { dwellMs: 20000, sizeFactor: 1, reducedMotion: false, activity: 'normal' };
 let prefs = { ...DEFAULT_PREFS };
 try {
   Object.assign(prefs, JSON.parse(fs.readFileSync(PREFS_FILE, 'utf8')));
@@ -111,7 +114,7 @@ const PORT_PREF = parseInt(process.env.DAFEIYU_PORT || process.env.PET_PORT || '
 //   2. 她自己觉得值得开口
 // 之后没人理她，她就淡出消失 —— 陪伴是她来，不是她赖着。
 const PRESENCE = {
-  hideAfterMs: prefs.dwellMs,     // 用户可调（右键「她待多久」）
+  hideAfterMs: prefs.dwellMs,     // 用户可调（右键「停留时间」）
   quitAfterMs: 20 * 60 * 1000,    // 再没人理，进程也退掉（不常驻占资源）
   fadeInMs: 420,
   fadeOutMs: 720,
@@ -181,16 +184,26 @@ function armPresenceTimers(extraMs = 0, keepQuit = false) {
 }
 
 function loadWindowState(width, height) {
-  try {
-    const s = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-    if (typeof s.x === 'number' && typeof s.y === 'number') return s;
-  } catch { /* 首次运行无记录 */ }
-  // 默认落在主屏右下角
-  const area = screen.getPrimaryDisplay().workAreaSize;
-  return {
-    x: area.width - width - 40,
-    y: area.height - height - 20,
+  const corner = () => {
+    const area = screen.getPrimaryDisplay().workAreaSize;
+    return { x: area.width - width - 40, y: area.height - height - 20 };
   };
+  let s = null;
+  try {
+    s = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+  } catch { /* 首次运行无记录 */ }
+  if (!s || typeof s.x !== 'number' || typeof s.y !== 'number') return corner();
+
+  // 上次那个坐标现在还落在某块屏幕上吗。
+  // 拔掉外接屏、改过分辨率、换过显示器排列之后，她会留在一个不存在的坐标上 ——
+  // 桌面上看不见她，而菜单也点不到（菜单在她身上）。
+  // 以前靠右键「回到右下角」手动救；自动发现比留个按钮可靠，所以按钮撤了，这段留下。
+  const MIN = 60;   // 至少要有这么大一块露在屏幕里，否则等于没有
+  const onSomeScreen = screen.getAllDisplays().some(({ workArea: a }) => (
+    s.x < a.x + a.width - MIN && s.x + width > a.x + MIN &&
+    s.y < a.y + a.height - MIN && s.y + height > a.y + MIN
+  ));
+  return onSomeScreen ? s : corner();
 }
 
 function saveWindowState() {
@@ -316,23 +329,24 @@ function showLedger() {
 }
 
 // ---- 右键菜单 ----
+// 菜单只留他真会去点的：她多久走、多活跃、多大、花了多少、跟她说句话、退出。
+// 撤掉的三个（「打开 WorkBuddy」「回到右下角」、以及「减少动态」那个勾）都不是「设置她」，
+// 而是「绕过她」：前者双击她就能回去，后者改成了启动时自动找回，
+// 「减少动态」换成了更直白的一个词 —— 活跃度。
 function showContextMenu() {
   const led = refreshLedger();
   const template = [
     {
-      label: '减少动态',
-      type: 'checkbox',
-      checked: reducedMotion,
-      click: (item) => {
-        reducedMotion = item.checked;
-        prefs.reducedMotion = reducedMotion;
-        savePrefs();
-        win?.webContents.send('reduced-motion', reducedMotion);
-      },
+      label: '活跃度',
+      submenu: ACTIVITY_LEVELS.map((a) => ({
+        label: a.label,
+        type: 'radio',
+        checked: prefs.activity === a.id,
+        click: () => setActivity(a.id),
+      })),
     },
-    { type: 'separator' },
     {
-      label: '她待多久',
+      label: '停留时间',
       submenu: DWELL_OPTIONS.map((o) => ({
         label: o.label,
         type: 'radio',
@@ -348,25 +362,9 @@ function showContextMenu() {
         { label: '大', type: 'radio', checked: sizeFactor === 1.25, click: () => resizeWindow(1.25) },
       ],
     },
-    {
-      label: '回到右下角',
-      click: () => {
-        const area = screen.getPrimaryDisplay().workAreaSize;
-        win?.setPosition(area.width - Math.round(CONFIG.window.width * sizeFactor) - 40,
-          area.height - Math.round(CONFIG.window.height * sizeFactor) - 20);
-        saveWindowState();
-      },
-    },
     { type: 'separator' },
     { label: ledger.label(led), click: showLedger },
-    { label: '去她家', click: () => ipcMain.emit('open-home') },
-    // 宿主是哪个 agent 写在 config.host 里。开源版换宿主不该改代码
-    ...(CONFIG.host && CONFIG.host.launchUrl
-      ? [{
-        label: '打开 ' + (CONFIG.host.name || '宿主'),
-        click: () => shell.openExternal(CONFIG.host.launchUrl),
-      }]
-      : []),
+    { label: '跟她聊聊', click: () => ipcMain.emit('open-home') },
     { type: 'separator' },
     { label: '退出桌宠', click: () => app.quit() },
   ];
@@ -405,6 +403,53 @@ detector.setThoughts(
 );
 let lastHookAt = 0;
 let savedHerSession = '';
+
+// ---- 活跃度 ----
+// 一个词决定「她自己跳出来的频率」。它同时拧三个旋钮：
+//   ① 主动开口的小时预算与冷却（点播、打招呼这类「你叫她」的不受限制）
+//   ② 深思的小时预算（唯一花钱的一层，跟着一起收放）
+//   ③ 她自己的日子还演不演（吃喝、节日、玩耍）
+//
+// 静默不是「小声点」。她的沉默指的是：**不再自己跳出来**。
+// 你戳她、拖她、双击她、说一句「跳个舞」、坐下来跟她聊 —— 她照样回应，
+// 那不是她跳出来，那是你叫她。
+const ACTIVITY_LEVELS = [
+  { id: 'quiet', label: '静默', budget: 0, cooldown: 1, deep: 0, life: false },
+  { id: 'normal', label: '标准', budget: 1, cooldown: 1, deep: 1, life: true },
+  { id: 'high', label: '高', budget: 2, cooldown: 0.5, deep: 2, life: true },
+];
+if (!ACTIVITY_LEVELS.some((a) => a.id === prefs.activity)) prefs.activity = 'normal';
+
+function activityLevel() {
+  return ACTIVITY_LEVELS.find((a) => a.id === prefs.activity) || ACTIVITY_LEVELS[1];
+}
+/** 她自己跳出来说话 / 做自己的事，现在允许吗 */
+function autoActive() {
+  return activityLevel().life;
+}
+
+/**
+ * 把当前活跃度落到各处。
+ * 预算和冷却都是「config.json 的出厂值 × 系数」—— 他手改过的闸门参数不该被这个菜单抹掉。
+ */
+function applyActivity() {
+  const a = activityLevel();
+  const gateCfg = CONFIG.gate || {};
+  detector.gate.maxPerHour = Math.round((gateCfg.maxPerHour || 12) * a.budget);
+  detector.gate.globalCooldownMs = Math.round((gateCfg.globalCooldownMs || 60000) * a.cooldown);
+  // 静默时她连「自己想说的话」（待说清单）也不主动念 —— 见 hook-mapper 的 muted
+  detector.muted = !a.life;
+  brain.cfg.maxPerHour = Math.round((BRAIN.maxPerHour || 3) * a.deep);
+}
+
+function setActivity(id) {
+  if (!ACTIVITY_LEVELS.some((a) => a.id === id)) return false;
+  prefs.activity = id;
+  savePrefs();
+  applyActivity();
+  return true;
+}
+applyActivity();   // 启动就按上次的档位来，别等第一次右键才生效
 
 try {
   const s = fs.readFileSync(HER_SESSION_FILE, 'utf8').trim();
@@ -530,8 +575,8 @@ function pickWeighted(pool) {
 function announceLife() {
   const life = CONFIG.life || {};
   if (life.enabled === false) return;
-  // autoShow 关掉时，只在她已经在屏幕上时才演 —— 不主动把她叫出来
-  if (!onStage && life.autoShow === false) return;
+  // 不在屏幕上时：静默档不叫她出来，autoShow=false 也不叫 —— 那两件事是同一个意思
+  if (!onStage && (!autoActive() || life.autoShow === false)) return;
   // 她正在说正事 / 正在深想 / 刚有动静：生活动作可以等，正事不能断
   if (deepBusyNow()) return;
   if (Date.now() - lastInteractAt < 20000) return;
@@ -872,6 +917,7 @@ function startStateServer() {
       res.end(JSON.stringify({
         ...detector.snapshot(),
         home: HOME_DIR,
+        activity: prefs.activity,
         lastHookAgoMs: lastHookAt ? Date.now() - lastHookAt : null,
         dwellMs: PRESENCE.hideAfterMs,
         thoughtsWaiting: (() => { try { return thoughts.count(); } catch { return -1; } })(),
@@ -886,7 +932,7 @@ function startStateServer() {
       res.end(JSON.stringify(d));
       return;
     }
-    // 让他看账本（跟右键菜单点「她吃了多少积分」同一条路径）
+    // 让他看账本（跟右键菜单点「积分累计使用」同一条路径）
     if (req.method === 'POST' && req.url === '/ledger-show') {
       showLedger();
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -918,6 +964,18 @@ function startStateServer() {
     if (req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, port: statePort, onStage, visible: win ? win.isVisible() : null }));
+      return;
+    }
+    // 调试/测试：改活跃度（跟右键菜单同一条代码路径）
+    if (req.method === 'POST' && req.url === '/activity') {
+      let body = '';
+      req.on('data', (c) => { body += c; if (body.length > 4096) req.destroy(); });
+      req.on('end', () => {
+        let ok = false;
+        try { ok = setActivity(String(JSON.parse(body || '{}').id || '')); } catch { /* 坏请求 */ }
+        res.writeHead(ok ? 200 : 400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok, activity: prefs.activity, maxPerHour: detector.gate.maxPerHour }));
+      });
       return;
     }
     // 调试/测试：改停留时长（跟右键菜单同一条代码路径）
@@ -1032,9 +1090,8 @@ ipcMain.on('speech-busy', (_e, ms) => {
 ipcMain.on('context-menu', () => showContextMenu());
 ipcMain.on('pet-poke', () => present());
 ipcMain.on('quit', () => app.quit());
-ipcMain.on('open-workbuddy', () => shell.openExternal('workbuddy://'));
 
-// 双击她 / 菜单「去她家」：认出她的会话就直接带他回去，认不出就把她的家打开
+// 双击她 / 菜单「跟她聊聊」：认出她的会话就直接带他回去，认不出就把她的家打开
 ipcMain.on('open-home', () => {
   const sid = detector.herSession || savedHerSession;
   if (sid) {
@@ -1046,7 +1103,10 @@ ipcMain.on('open-home', () => {
   shell.openPath(HOME_DIR);
 });
 
-let dragOffset = { dx: 0, dy: 0 };
+// 拖动：偏移量只在一次拖动期间有效。
+// 用 null 表示「没有正在进行的拖动」—— 收到 drag-move 就照着旧偏移挪窗口，
+// 是她变成「磁铁」的另一半原因：残留或重复的一条消息，也能把窗口拽走。
+let dragOffset = null;
 ipcMain.on('drag-start', () => {
   present();   // 他在动她，那就是还想看见她
   // 记录按下时的鼠标与窗口原点偏移，供 drag-move 计算
@@ -1055,11 +1115,15 @@ ipcMain.on('drag-start', () => {
   dragOffset = { dx: cursor.x - wx, dy: cursor.y - wy };
 });
 ipcMain.on('drag-move', () => {
-  if (!win) return;
+  if (!win || !dragOffset) return;
   const cursor = screen.getCursorScreenPoint();
   win.setPosition(cursor.x - dragOffset.dx, cursor.y - dragOffset.dy);
 });
-ipcMain.on('drag-end', () => saveWindowState());
+ipcMain.on('drag-end', () => {
+  if (!dragOffset) return;
+  dragOffset = null;
+  saveWindowState();
+});
 
 // 单实例：双击两次会起两个桌宠，第二个会抢走端口让第一个收不到事件
 if (!app.requestSingleInstanceLock()) {

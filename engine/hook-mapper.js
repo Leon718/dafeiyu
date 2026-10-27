@@ -47,6 +47,11 @@ const FAIL_TIERS = [7, 5, 3];
 // 只有会重复发生的点评才吃小时预算。打招呼一天就一次，本来就不该跟点评抢。
 const FREE_MOMENTS = ['firstGreet', 'comeback', 'openHome', 'bye', 'poke', 'drag', 'noSession', 'play'];
 
+// 静默档下还允许出声的时刻：**他这一刻叫了她**的。
+// 点播是他让她演；openHome / atHome 是他坐下来跟她说话。
+// 其余的（见面礼、回来、收工、点评、待说清单）都是她自己凑上来的，静默时一律不出声。
+const CALLED_MOMENTS = ['play', 'openHome', 'atHome'];
+
 // 时刻 → 她用的动画。她工作的动画池（忙碌点按等）已经全部废弃，
 // 那些是形态一的遗产：干活的是他，不是她。
 const MOMENT_ANIM = {
@@ -180,6 +185,10 @@ class MomentDetector {
     this.greeted = null;       // 已经打过招呼的那一天
     this.lastLine = Object.create(null);
     this.onDerivedMoment = null;
+    // 静默：她自己不出来说话（右键「活跃度 → 静默」）。
+    // 由 main.js 的 applyActivity() 设置。挡在 handle() 的最后一道，
+    // 所以她照样「看见」他干了什么，只是不开口。
+    this.muted = false;
 
     // 「待说清单」：她在会话里想好的话，桌宠只负责在对的时机念出来。
     // 规则生不出见地 —— 见地必须来自她真的读过上下文。
@@ -482,9 +491,14 @@ class MomentDetector {
    */
   handle(payload) {
     const out = this._handleInner(payload);
-    if (out) return out;
     // 其他时刻都没话说，再看看她手上有没有攒着想说的话
-    return this._thoughtMoment(payload, this._now());
+    const picked = out || this._thoughtMoment(payload, this._now());
+    if (!picked) return null;
+    // 静默（右键「活跃度」的第一档）：她自己不出来。
+    // 判断放在最后一道，是因为她「这一轮看见了什么」还得照常记 ——
+    // 静默的是嘴，不是眼睛；哪天他调回标准，她不用重新认识他一遍。
+    if (this.muted && !CALLED_MOMENTS.includes(picked.moment)) return null;
+    return picked;
   }
 
   _handleInner(payload) {

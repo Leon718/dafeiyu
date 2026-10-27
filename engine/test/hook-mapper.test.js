@@ -752,6 +752,83 @@ function mkW(opts = {}) {
     }
   }
 
+  console.log('\n[20] 静默档：她自己不出来，你叫她她照样应');
+  {
+    const play = [{ match: ['跳舞', '跳个舞'], anim: '可爱宅舞' }];
+    const build = () => {
+      let T = new Date(2026, 9, 25, 14, 0, 0).getTime();
+      const m = new MomentDetector({
+        voices: VOICES, home: HOME,
+        gate: { ...OPEN.gate }, now: () => T, play,
+      });
+      return { m, tick: (ms) => { T += ms; } };
+    };
+
+    // ① 见面礼：他一开口她就应一声。静默档不该响
+    {
+      const a = build();
+      const greet = a.m.handle({ hook_event_name: 'UserPromptSubmit', session_id: S, cwd: '/work/x' });
+      ok('标准档：他开口，她应一声', !!(greet && greet.text), JSON.stringify(greet));
+
+      const b = build();
+      b.m.muted = true;
+      eq('静默档：见面礼不响',
+        b.m.handle({ hook_event_name: 'UserPromptSubmit', session_id: S, cwd: '/work/x' }), null);
+    }
+
+    // ② 点评：同一个文件改到第三遍
+    {
+      const F = '/home/me/code/demo/agent.py';
+      const threeEdits = (m, tick) => {
+        let out = null;
+        for (let i = 0; i < 3; i++) {
+          out = m.handle({
+            hook_event_name: 'PreToolUse', session_id: S, tool_name: 'Edit',
+            tool_input: { file_path: F }, cwd: '/home/me/code/demo',
+          });
+          tick(20000);
+        }
+        return out;
+      };
+
+      const c = build();
+      c.m.handle({ hook_event_name: 'UserPromptSubmit', session_id: S, cwd: '/work/x' });
+      const said = threeEdits(c.m, c.tick);
+      ok('标准档：改到第三遍她提一句', !!(said && said.moment === 'grind'), JSON.stringify(said));
+
+      const d = build();
+      d.m.muted = true;
+      d.m.handle({ hook_event_name: 'UserPromptSubmit', session_id: S, cwd: '/work/x' });
+      eq('静默档：同样的动作，她看见了但不出声', threeEdits(d.m, d.tick), null);
+    }
+
+    // ③ 点播：她说「跳个舞」就跳。这是你叫她，不算她跳出来
+    {
+      const e = build();
+      e.m.muted = true;
+      e.m.handle({ hook_event_name: 'UserPromptSubmit', session_id: S, cwd: '/work/x', prompt: '看下这个报错' });
+      const r = e.m.handle({ hook_event_name: 'UserPromptSubmit', session_id: S, cwd: '/work/x', prompt: '跳个舞' });
+      ok('静默档：你叫她演，她照演', !!(r && r.moment === 'play'), JSON.stringify(r));
+    }
+
+    // ④ 坐下来跟她聊：她照常露面应声
+    {
+      const f = build();
+      f.m.muted = true;
+      const home = f.m.handle({ hook_event_name: 'UserPromptSubmit', session_id: S, cwd: HOME });
+      ok('静默档：你在她家开口，她照常应', !!(home && home.home === true), JSON.stringify(home));
+    }
+
+    // ⑤ 久坐：预算为 0 时她不说。静默档正是把 maxPerHour 置 0
+    {
+      const g = build();
+      g.m.gate.maxPerHour = 0;
+      g.m.handle({ hook_event_name: 'UserPromptSubmit', session_id: S, cwd: '/work/x' });
+      g.tick(20 * 60 * 1000);
+      eq('静默档：你半天不动，她也不出声', g.m.idleTick(), null);
+    }
+  }
+
   console.log(`\n${fail === 0 ? 'ALL PASS' : 'FAILED'}  ${pass} passed, ${fail} failed`);
   process.exit(fail === 0 ? 0 : 1);
 })();
