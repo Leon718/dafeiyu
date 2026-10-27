@@ -1,0 +1,40 @@
+MIT License
+
+Copyright (c) 2026 dafeiyu contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+本文件只覆盖**代码**（`engine/`、`host/`、`tools/`）。仓库里另外两部分不是 MIT：
+
+| 部分 | 许可 | 能不能商用 |
+|---|---|---|
+| `engine/` `host/` `tools/`（代码） | MIT | 可以 |
+| `content/`（台词、角色设定） | CC BY-NC-SA 4.0 | 不可以 |
+| `assets/third-party/`（他人动画素材） | 按上游声明，见 THIRD-PARTY-NOTICES.md | **不可以** |
+| `content/assets/`（你自己画的美术） | 由你自己定 | 由你自己定 |
+
+两份例外文件：`content/LICENSE`、`THIRD-PARTY-NOTICES.md`。
+
+**为什么不能统一成 MIT**：MIT 允许商用，但第三方素材和角色形象的授权方明确
+保留了「禁止商用」——我们没有权利替他们放宽。想让整个项目变成纯 MIT，
+唯一的办法是把 `assets/third-party/` 换成你自己生成的素材。
+
+**注意**：即使只是分发，也请保留 `assets/third-party/` 下的原版权声明与作者署名。

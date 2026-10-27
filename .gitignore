@@ -1,0 +1,30 @@
+# 依赖
+node_modules/
+
+# 运行时产物
+*.log
+*.pid
+.DS_Store
+.DS_Store?
+
+# 她自己产生的文件（日记、待说清单）—— 不进仓库
+# 默认人格目录会回落到 content/，不加这一行，你的私人日记就会被 git 看见
+.workbuddy/
+
+# 本地备份
+*.bak-*
+*.bak-pet-*
+
+# 编辑器
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+
+# 内部工具：跟产品无关，不进仓库
+.internal/
+# 审计文档是本地生成物（node tools/anim-audit.js），不进仓库
+docs/ANIM-AUDIT.md
+docs/VOICE-AUDIT.md

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>WorkBuddy Pet</title>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    background: transparent;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-drag: none;
+    cursor: default;
+  }
+  #stage {
+    position: relative;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    /* 默认透明：她不常驻桌面，被召唤才淡入 */
+    opacity: 0;
+    transition: opacity 400ms ease;
+  }
+  video {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 640px; height: 360px;
+    transform-origin: center center;
+    transform: translate(-50%, -50%) scale(var(--scale, 1.2));
+    opacity: 0;
+    transition: opacity 180ms ease;
+    pointer-events: none;
+  }
+  video.visible { opacity: 1; }
+
+  #bubble {
+    position: absolute;
+    left: 50%;
+    top: 4px;
+    transform: translateX(-50%) translateY(-4px) scale(.9);
+    transform-origin: 50% calc(100% + 6px);
+    /* 关键：absolute + left:50% 元素的「可用宽度」只有窗口的一半（180px），
+       auto 宽度会被压到 178px，长句就被迫折成两行。
+       实测「python3 run.py 第三次。」会断在「…第 / 三次。」。
+       width: max-content 让它先按内容撑开，再由 max-width 收口。 */
+    width: max-content;
+    max-width: min(320px, calc(100vw - 24px));
+    min-width: 62px;
+    padding: 11px 16px;
+    border-radius: 14px;
+    background: rgba(22, 26, 32, 0.97);
+    color: #f2f7fc;
+    font: 500 15px/1.5 -apple-system, "PingFang SC", sans-serif;
+    letter-spacing: .2px;
+    text-align: center;
+    box-shadow: 0 10px 28px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.35);
+    border: 1px solid rgba(255,255,255,.14);
+    opacity: 0;
+    transition: opacity 170ms ease, transform 200ms cubic-bezier(.2,.9,.3,1.35);
+    pointer-events: none;
+    white-space: pre-wrap;
+    /* 注意别用 word-break: break-word —— 它会把气泡的「自然宽度」算成单字宽，
+       于是 auto 宽度的绝对定位元素自己缩到 178px，长句就被迫折行
+       （实测「python3 run.py 第三次。」会断成「…第 / 三次。」）。
+       overflow-wrap: break-word 只在真的放不下时才断词，不参与宽度估算。 */
+    overflow-wrap: break-word;
+  }
+  #bubble.show { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  #bubble::after {
+    content: '';
+    position: absolute;
+    left: 50%; bottom: -6px;
+    width: 11px; height: 11px;
+    margin-left: -5.5px;
+    background: rgba(22, 26, 32, 0.97);
+    border-right: 1px solid rgba(255,255,255,.14);
+    border-bottom: 1px solid rgba(255,255,255,.14);
+    transform: rotate(45deg);
+  }
+  #state-tag {
+    position: absolute;
+    right: 6px; bottom: 4px;
+    font: 10px/1 -apple-system, sans-serif;
+    color: rgba(255,255,255,.45);
+    padding: 3px 6px;
+    border-radius: 6px;
+    background: rgba(0,0,0,.35);
+    opacity: 0;
+    transition: opacity 200ms;
+  }
+  #state-tag.show { opacity: 1; }
+
+  /* 积分小票：他点「她吃了多少积分」时弹出来，数字会从 0 滚上去 */
+  #ledger {
+    position: absolute;
+    left: 50%; top: 4px;
+    transform: translateX(-50%) translateY(-8px) scale(.94);
+    min-width: 176px;
+    padding: 9px 16px 8px;
+    border-radius: 14px;
+    background: rgba(20, 24, 30, .95);
+    border: 1px solid rgba(255,255,255,.10);
+    box-shadow: 0 8px 24px rgba(0,0,0,.42);
+    text-align: center;
+    opacity: 0;
+    transition: opacity 220ms ease, transform 260ms cubic-bezier(.2,.9,.3,1.3);
+    pointer-events: none;
+  }
+  #ledger.show { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  #ledger .num {
+    font: 600 22px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: #ffd479;
+    letter-spacing: .5px;
+  }
+  #ledger .num .u {
+    font-size: 11px;
+    margin-left: 3px;
+    color: rgba(255,212,121,.72);
+    font-weight: 400;
+  }
+  #ledger .sub {
+    margin-top: 4px;
+    font: 10.5px/1.55 -apple-system, "PingFang SC", sans-serif;
+    color: rgba(230,237,243,.55);
+    white-space: pre-line;
+  }
+  /* 小票出现时把气泡往下挤，两个都在顶部会打架 */
+  #stage.ledger-on #bubble { top: 104px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <video id="va" muted playsinline preload="auto"></video>
+  <video id="vb" muted playsinline preload="auto"></video>
+  <div id="ledger">
+    <div class="num"><span id="ledger-num">0.0</span><span class="u">分</span></div>
+    <div class="sub" id="ledger-sub"></div>
+  </div>
+  <div id="bubble"></div>
+  <div id="state-tag"></div>
+</div>
+<script src="pet.js"></script>
+</body>
+</html>

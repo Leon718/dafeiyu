@@ -1,0 +1,21 @@
+{
+  "name": "dafeiyu",
+  "version": "0.1.0",
+  "private": true,
+  "description": "住在 agent 里的桌面伴侣：她自己判断什么时候开口，不播报任务状态",
+  "main": "engine/main.js",
+  "license": "SEE LICENSE IN LICENSE",
+  "scripts": {
+    "start": "sh -c 'exec env -u ELECTRON_RUN_AS_NODE \"$(python3 host/install-hooks.py which-electron)\" .'",
+    "test": "node engine/test/watch.test.js && node engine/test/brain.test.js && node engine/test/config.test.js && node engine/test/calendar.test.js && node engine/test/hook-mapper.test.js && node engine/test/echo.test.js && node engine/test/journal.test.js",
+    "install-hooks": "python3 host/install-hooks.py install",
+    "uninstall-hooks": "python3 host/install-hooks.py uninstall",
+    "hook-status": "python3 host/install-hooks.py status",
+    "which-electron": "python3 host/install-hooks.py which-electron",
+    "assets-check": "node tools/check-assets.js",
+    "make-sample": "node tools/make-sample.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

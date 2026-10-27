@@ -1,0 +1,750 @@
+{
+  "_doc": "引擎默认配置。用户改动写在 <userData>/config.json，会覆盖这里的同名字段。台词不在这里，在 content/voices.json（人格单一事实源）。",
+  "_change": "形态二：states（六档工作状态）与 dialogue（按工具播报）已全部删除。干活的是他，不是她。",
+  "window": {
+    "width": 360,
+    "height": 380,
+    "scale": 1.22,
+    "alwaysOnTop": true,
+    "clickThrough": false
+  },
+  "_personaDir": "她的人格目录由 engine/paths.js 决定（DAFEIYU_HOME → userData/persona → content/），不在这里配，避免两处打架",
+  "host": {
+    "_doc": "她住在哪个 agent 里。开源版默认按 WorkBuddy 配，换成别的宿主只改这里 —— 右键菜单的「打开 ×××」跟着走。launchUrl 留空则隐藏这一项",
+    "name": "WorkBuddy",
+    "launchUrl": "workbuddy://"
+  },
+  "presence": {
+    "_doc": "出场/退场。她不常驻桌面：被召唤才淡入，没人理就淡出并隐藏窗口。hideAfterMs 只是出厂默认，真值在右键「她待多久」里，存在 pet-prefs.json",
+    "hideAfterMs": 20000,
+    "quitAfterMs": 1200000,
+    "fadeInMs": 420,
+    "fadeOutMs": 720
+  },
+  "ledger": {
+    "_doc": "他点「她吃了多少积分」时的演出。数字从 0 滚上去，然后按累计消耗换钱袋：花得越多，袋子越空",
+    "countingAnim": "吃Token",
+    "fallbackAnim": "余额-袋空如洗",
+    "tiers": [
+      {
+        "maxCredits": 5,
+        "anim": "余额-钱袋满溢"
+      },
+      {
+        "maxCredits": 20,
+        "anim": "余额-钱袋如常"
+      },
+      {
+        "maxCredits": 60,
+        "anim": "余额-数金皱眉"
+      },
+      {
+        "maxCredits": 200,
+        "anim": "余额-分文不剩"
+      }
+    ]
+  },
+  "echo": {
+    "_doc": "复读：她在聊天窗口说完一句（Stop），桌面上的她按她的换行把这句话再念一遍，一句一拍。读本地转录，零积分。enabled 关掉就只在「时刻」说话",
+    "enabled": true,
+    "maxBeats": 3,
+    "maxChars": 60,
+    "anim": "碎碎念-对屏碎碎念"
+  },
+  "journal": {
+    "_doc": "替她记账：她停止回话时，把他这一轮的原话抄进 .workbuddy/memory/YYYY-MM-DD.md。读本地转录，零积分、零模型往返，不增加他的等待。只在她家生效",
+    "enabled": true,
+    "maxChars": 60
+  },
+  "brain": {
+    "_doc": "深思：唯一会花钱的一层。规则决定要不要开口（频率不变），模型只决定这一句能说多深。价值只在「规则做不了、卡里恰好有素材」的四个时刻：读报错原文 / 看未提交的 diff / 看时间线形状 / 猜他在把什么改成什么。任何一步失败都静默退回规则那句",
+    "_cost": "一次 2.6~5 秒（流式首句，实测暖缓存 2.6 秒）。maxPerHour=3 是硬上限，正常运行一天不到 20 次",
+    "enabled": true,
+    "provider": "claude",
+    "model": "haiku",
+    "timeoutMs": 18000,
+    "softTimeoutMs": 12000,
+    "maxPerHour": 3,
+    "minGapMs": 100000,
+    "sameAnchorHours": 12,
+    "maxOutputChars": 40,
+    "minErrChars": 160,
+    "minDigActions": 3,
+    "deepDelayMs": 850,
+    "holdMs": 14000,
+    "baseUrl": "",
+    "apiKey": "",
+    "claudePath": ""
+  },
+  "watch": {
+    "_doc": "她看得见什么：不读代码，只读动作（哪个项目 / 什么工具 / 改哪个文件 / 跑什么命令 / 成没成）。数据全在 hook payload 里，零积分。详见 watch.js",
+    "enabled": true,
+    "editWindowMs": 1800000,
+    "editTiers": [
+      3,
+      5,
+      8
+    ],
+    "cmdWindowMs": 1200000,
+    "cmdTiers": [
+      3,
+      5
+    ],
+    "blastFiles": 6,
+    "noVerifyFiles": 4,
+    "loopCycles": 3,
+    "readOnlyStreak": 12,
+    "readOnlyFiles": 4,
+    "readOnlySpanMs": 180000,
+    "rushMs": 15000,
+    "stallMs": 300000,
+    "flipWindowMs": 900000,
+    "sameCueGapMs": 1200000,
+    "cueGapMs": {
+      "grind": 480000,
+      "guess": 1200000,
+      "blast": 3600000,
+      "noVerify": 1800000,
+      "errKnown": 1200000,
+      "danger": 300000,
+      "flip": 600000,
+      "rush": 1200000,
+      "loop": 1200000,
+      "searchOnly": 2400000,
+      "stall": 1800000
+    },
+    "projects": {
+      "_doc": "目录名 → 她嘴里怎么称呼。默认空着：没配的目录她用目录名本身。值为空字符串表示别提这个项目（日期式目录名念出来像乱码，可以这样静音）"
+    }
+  },
+  "gate": {
+    "_doc": "闸门只管「她主动来打扰」。他找她、他回来、他戳她这些回应类时刻不占预算也不吃冷却（见 hook-mapper 的 FREE_MOMENTS）。每小时 12 次是兜底，真正的防话痨是 watch.js 的去重窗口和 60 秒冷却",
+    "maxPerHour": 12,
+    "globalCooldownMs": 60000,
+    "longRunMs": 1200000,
+    "comebackGapMs": 1800000,
+    "reportBackMinMs": 480000,
+    "reportBackMinActs": 3,
+    "reportBackMinFails": 3,
+    "idleLongMs": 900000,
+    "nightFromHour": 23,
+    "nightFromMin": 30,
+    "nightToHour": 5,
+    "thoughtChance": 0.55
+  },
+  "idle": {
+    "interval": [
+      25,
+      45
+    ],
+    "pool": [
+      {
+        "name": "待机呼吸休闲",
+        "weight": 10
+      },
+      {
+        "name": "东张西望",
+        "weight": 5
+      },
+      {
+        "name": "哈欠连天",
+        "weight": 3
+      },
+      {
+        "name": "悠闲哼歌",
+        "weight": 4
+      },
+      {
+        "name": "原地小憩沉眠",
+        "weight": 2
+      },
+      {
+        "name": "深度思考碎碎念",
+        "weight": 3
+      },
+      {
+        "name": "碎碎念-发呆碎碎念",
+        "weight": 4
+      },
+      {
+        "name": "碎碎念-对屏碎碎念",
+        "weight": 4
+      },
+      {
+        "name": "原地专心玩魔方",
+        "weight": 3
+      },
+      {
+        "name": "撸猫",
+        "weight": 2
+      },
+      {
+        "name": "超大伸懒腰",
+        "weight": 3
+      },
+      {
+        "name": "照镜子",
+        "weight": 2
+      },
+      {
+        "name": "轻快摇摆舞",
+        "weight": 3
+      },
+      {
+        "name": "原地漂浮踏步",
+        "weight": 3
+      }
+    ]
+  },
+  "life": {
+    "_doc": "她自己的日子。吃喝、节日、玩耍不进时刻表 —— 它们不告诉他它干得怎么样，只说明她自己也活着。按 engine/calendar.js 的日历条件抽",
+    "enabled": true,
+    "_autoShow": "不在场时也自己出来做一件事，播完就回去。一直待在屏幕上反而是打扰，所以间隔是十几分钟一次",
+    "autoShow": true,
+    "interval": [
+      720,
+      1500
+    ],
+    "holdMs": 6000,
+    "pool": [
+      {
+        "name": "吃早餐",
+        "weight": 10,
+        "when": {
+          "meal": "breakfast"
+        }
+      },
+      {
+        "name": "晨间刷牙",
+        "weight": 6,
+        "when": {
+          "meal": "breakfast"
+        }
+      },
+      {
+        "name": "吃午餐",
+        "weight": 10,
+        "when": {
+          "meal": "lunch"
+        }
+      },
+      {
+        "name": "吃晚餐",
+        "weight": 10,
+        "when": {
+          "meal": "dinner"
+        }
+      },
+      {
+        "name": "大口吃零食",
+        "weight": 5,
+        "when": {
+          "meal": "nightsnack"
+        }
+      },
+      {
+        "name": "偷吃零食被抓住",
+        "weight": 3,
+        "when": {
+          "meal": "nightsnack"
+        }
+      },
+      {
+        "name": "中秋赏月吃月饼",
+        "weight": 8,
+        "when": {
+          "festival": "midautumn"
+        }
+      },
+      {
+        "name": "吃粽子",
+        "weight": 8,
+        "when": {
+          "festival": "dragon"
+        }
+      },
+      {
+        "name": "吃汤圆",
+        "weight": 8,
+        "when": {
+          "festival": "lantern"
+        }
+      },
+      {
+        "name": "吃饺子",
+        "weight": 6,
+        "when": {
+          "festival": "spring"
+        }
+      },
+      {
+        "name": "收红包",
+        "weight": 6,
+        "when": {
+          "festival": "spring"
+        }
+      },
+      {
+        "name": "放烟花",
+        "weight": 4,
+        "when": {
+          "festival": "spring"
+        }
+      },
+      {
+        "name": "吃年糕",
+        "weight": 6,
+        "when": {
+          "festival": "xiaonian"
+        }
+      },
+      {
+        "name": "写福字",
+        "weight": 5,
+        "when": {
+          "festival": "xiaonian"
+        }
+      },
+      {
+        "name": "吃腊八粥",
+        "weight": 8,
+        "when": {
+          "festival": "laba"
+        }
+      },
+      {
+        "name": "吃重阳糕",
+        "weight": 8,
+        "when": {
+          "festival": "chongyang"
+        }
+      },
+      {
+        "name": "插茱萸赏菊",
+        "weight": 5,
+        "when": {
+          "festival": "chongyang"
+        }
+      },
+      {
+        "name": "穿针乞巧",
+        "weight": 8,
+        "when": {
+          "festival": "qixi"
+        }
+      },
+      {
+        "name": "装点圣诞树",
+        "weight": 8,
+        "when": {
+          "festival": "christmas"
+        }
+      },
+      {
+        "name": "讨糖南瓜灯",
+        "weight": 8,
+        "when": {
+          "festival": "halloween"
+        }
+      },
+      {
+        "name": "堆雪人",
+        "weight": 5,
+        "when": {
+          "season": "winter"
+        }
+      },
+      {
+        "name": "涮火锅",
+        "weight": 4,
+        "when": {
+          "season": "winter"
+        }
+      },
+      {
+        "name": "吃西瓜",
+        "weight": 5,
+        "when": {
+          "season": "summer"
+        }
+      },
+      {
+        "name": "摇扇纳凉",
+        "weight": 4,
+        "when": {
+          "season": "summer"
+        }
+      },
+      {
+        "name": "吃冰淇淋融化",
+        "weight": 4,
+        "when": {
+          "season": "summer"
+        }
+      },
+      {
+        "name": "玩水枪",
+        "weight": 3,
+        "when": {
+          "season": "summer"
+        }
+      },
+      {
+        "name": "放风筝",
+        "weight": 4,
+        "when": {
+          "season": "spring"
+        }
+      },
+      {
+        "name": "吃青团",
+        "weight": 5,
+        "when": {
+          "season": "spring"
+        }
+      },
+      {
+        "name": "被落叶淹没",
+        "weight": 3,
+        "when": {
+          "season": "autumn"
+        }
+      },
+      {
+        "name": "吃大闸蟹",
+        "weight": 4,
+        "when": {
+          "season": "autumn"
+        }
+      },
+      {
+        "name": "吃白饭",
+        "weight": 1
+      },
+      {
+        "name": "吃糖葫芦",
+        "weight": 2
+      },
+      {
+        "name": "吃长寿面",
+        "weight": 1
+      },
+      {
+        "name": "踢毽子",
+        "weight": 2
+      },
+      {
+        "name": "抽陀螺",
+        "weight": 2
+      },
+      {
+        "name": "荡秋千",
+        "weight": 2
+      },
+      {
+        "name": "下五子棋",
+        "weight": 2
+      },
+      {
+        "name": "吹气球",
+        "weight": 1
+      },
+      {
+        "name": "原地蹲下玩玩具汽车",
+        "weight": 2
+      },
+      {
+        "name": "螃蟹走路",
+        "weight": 1
+      },
+      {
+        "name": "鲸鱼吐泡泡特效",
+        "weight": 1
+      },
+      {
+        "name": "蓝鲸现世",
+        "weight": 1
+      },
+      {
+        "name": "萌化小幽灵",
+        "weight": 1
+      },
+      {
+        "name": "放河灯",
+        "weight": 1
+      },
+      {
+        "name": "吹笛子",
+        "weight": 1
+      },
+      {
+        "name": "小提琴演奏",
+        "weight": 1
+      },
+      {
+        "name": "三球抛接",
+        "weight": 1
+      },
+      {
+        "name": "扑克魔术",
+        "weight": 1
+      },
+      {
+        "name": "变鸽子",
+        "weight": 1
+      },
+      {
+        "name": "优雅女仆舞",
+        "weight": 1
+      },
+      {
+        "name": "可爱宅舞",
+        "weight": 1
+      },
+      {
+        "name": "舞狮头",
+        "weight": 1
+      },
+      {
+        "name": "女仆屈膝礼仪",
+        "weight": 1
+      },
+      {
+        "name": "整体换装试色",
+        "weight": 1
+      },
+      {
+        "name": "打瞌睡被惊醒",
+        "weight": 3,
+        "when": {
+          "hour": [
+            23,
+            6
+          ]
+        }
+      },
+      {
+        "name": "放孔明灯",
+        "weight": 5,
+        "when": {
+          "festival": [
+            "lantern",
+            "midautumn",
+            "spring"
+          ]
+        }
+      },
+      {
+        "name": "拆礼物",
+        "weight": 4,
+        "when": {
+          "festival": [
+            "spring",
+            "christmas",
+            "newyear"
+          ]
+        }
+      },
+      {
+        "name": "碎碎念-擦桌碎碎念",
+        "weight": 2
+      },
+      {
+        "name": "骑木马",
+        "weight": 2
+      },
+      {
+        "name": "用鲸鱼尾巴拍打地面",
+        "weight": 1
+      },
+      {
+        "name": "余额-金袋叮当",
+        "weight": 3
+      },
+      {
+        "name": "是啊，吃什么",
+        "weight": 4
+      },
+      {
+        "name": "轻快记录",
+        "weight": 3
+      },
+      {
+        "name": "原地左转奔跑",
+        "weight": 2
+      },
+      {
+        "name": "原地敲击桌面互动",
+        "weight": 2
+      },
+      {
+        "name": "原地重力下蹲压缩",
+        "weight": 1
+      },
+      {
+        "name": "凭空生花",
+        "weight": 3,
+        "when": {
+          "season": "spring"
+        }
+      },
+      {
+        "name": "动物环绕",
+        "weight": 3,
+        "when": {
+          "season": "spring"
+        }
+      },
+      {
+        "name": "蝴蝶蜜蜂环绕头顶开花",
+        "weight": 3,
+        "when": {
+          "season": "summer"
+        }
+      }
+    ]
+  },
+  "poke": {
+    "pool": [
+      {
+        "name": "点击回应-元气挥手",
+        "weight": 4
+      },
+      {
+        "name": "点击回应-开心跃动",
+        "weight": 3
+      },
+      {
+        "name": "点击回应-害羞惊讶",
+        "weight": 2
+      },
+      {
+        "name": "点击回应-挠痒咯咯笑",
+        "weight": 2
+      },
+      {
+        "name": "点击回应-傲娇生气",
+        "weight": 1
+      }
+    ]
+  },
+  "drag": {
+    "name": "被鼠标拖拽悬空反馈"
+  },
+  "play": {
+    "_doc": "他直接点播：说出想看的动作，她就演。关键词表，零模型零积分。防误伤规则见 hook-mapper 的 matchPlay",
+    "enabled": true,
+    "cues": [
+      {
+        "match": [
+          "跳舞",
+          "跳支舞",
+          "跳个舞",
+          "宅舞"
+        ],
+        "anim": "可爱宅舞"
+      },
+      {
+        "match": [
+          "女仆舞"
+        ],
+        "anim": "优雅女仆舞"
+      },
+      {
+        "match": [
+          "舞狮",
+          "狮子"
+        ],
+        "anim": "舞狮头"
+      },
+      {
+        "match": [
+          "吹笛",
+          "笛子"
+        ],
+        "anim": "吹笛子"
+      },
+      {
+        "match": [
+          "小提琴",
+          "拉琴"
+        ],
+        "anim": "小提琴演奏"
+      },
+      {
+        "match": [
+          "魔术"
+        ],
+        "anim": "扑克魔术"
+      },
+      {
+        "match": [
+          "鸽子"
+        ],
+        "anim": "变鸽子"
+      },
+      {
+        "match": [
+          "抛球",
+          "杂耍"
+        ],
+        "anim": "三球抛接"
+      },
+      {
+        "match": [
+          "哈欠"
+        ],
+        "anim": "哈欠连天"
+      },
+      {
+        "match": [
+          "伸懒腰"
+        ],
+        "anim": "超大伸懒腰"
+      },
+      {
+        "match": [
+          "游泳",
+          "游一圈"
+        ],
+        "anim": "蓝鲸现世"
+      },
+      {
+        "match": [
+          "吐泡泡",
+          "泡泡"
+        ],
+        "anim": "鲸鱼吐泡泡特效"
+      },
+      {
+        "match": [
+          "换装",
+          "换件衣服",
+          "试色"
+        ],
+        "anim": "整体换装试色"
+      },
+      {
+        "match": [
+          "行礼",
+          "鞠躬"
+        ],
+        "anim": "女仆屈膝礼仪"
+      },
+      {
+        "match": [
+          "转一圈",
+          "转个圈"
+        ],
+        "anim": "小幅度原地360度旋转展示"
+      },
+      {
+        "match": [
+          "跳一下",
+          "跳一跳"
+        ],
+        "anim": "原地跳跃抓碎头顶物品"
+      }
+    ]
+  }
+}
